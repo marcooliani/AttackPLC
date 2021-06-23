@@ -81,9 +81,12 @@ class AttackPLC:
       coils = mb.read_coils(0, 8)
       print("Coils: " + str(coils))
 
+      self.plc_registers[plc_list[plc]] = {}
+
       #print("Bau")
       #print(plcs[plc])
 
+    print(self.plc_registers)
     mb.close()
 
     
