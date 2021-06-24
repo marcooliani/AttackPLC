@@ -3,6 +3,7 @@ import sys
 import nmap3 # Per lo scan della rete
 import json # Per gestire i file json
 import threading # Per fare poi il loop dell'attacco
+from collections import defaultdict
 from easymodbus.modbusClient import ModbusClient
 
 class AttackPLC:
@@ -12,7 +13,8 @@ class AttackPLC:
   """
   def __init__(self):
     self.plc_list = {}
-    self.plc_registers = {}
+    #self.plc_registers = {}
+    self.plc_registers = defaultdict(dict)
     self.single_plc_registers = {}
 
   """
@@ -162,12 +164,16 @@ class AttackPLC:
       print(Coils)
 
       # Qui dovrei aggiornare il dict, in teoria...
-      self.plc_registers[plc_list[plc]] = {}
+      #self.plc_registers[plc_list[plc]] = {}
+      self.plc_registers[plc_list[plc]]['DiscreteInputRegisters'] = disInReg
+      self.plc_registers[plc_list[plc]]['InputRegisters'] = InReg
+      self.plc_registers[plc_list[plc]]['HoldingOutputRegisters'] = HolReg
+      self.plc_registers[plc_list[plc]]['Coils'] = Coils
 
       #print(plcs[plc])
 
     # Stampo il dict totale (quando riuscirò a farlo!)
-    print(self.plc_registers)
+    print(json.dumps(self.plc_registers, indent=4))
     mb.close()
 
 
