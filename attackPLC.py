@@ -13,9 +13,179 @@ class AttackPLC:
   """
   def __init__(self):
     self.plc_list = {}
-    #self.plc_registers = {}
     self.plc_registers = defaultdict(dict)
-    self.single_plc_registers = {}
+    self.single_plc_registers = defaultdict(dict)
+
+    self.disInReg = {}
+    self.InReg = {}
+    self.HolReg = {}
+    self.Coils = {}
+
+  """
+  [Metodo interno] Verifico se già esiste una scansione precedente. Se non esiste,
+  chiedo all'utente di effettuarne una
+  """
+  def scan_is_present(self):
+    if not os.path.exists('plc_list.json'):
+      req = input("PLC list not present. Perform a new search? [y/n] ")
+
+      if(req == "y" or req == "Y"):
+        self.find_PLCs()
+      else:
+        return
+
+  """
+  Leggo i Discrete Input Registers (identificati da %IXa.b).
+
+  Parametri:
+  - mb: è il file descriptor della connessione Modbus
+  - single_plc: se False, legge 8 registri a partire da un
+  indirizzo predefinito 0 (quindi da %IX0.0 a %IX0.7).
+  Se True, legge 8 registri a partire da un indirizzo
+  specificato dall'utente (il numero dell'indirizzo è in base 8
+  e va convertito in decimale affiché Modbus riesca a leggerlo)
+  """
+  def read_DiscreteInputRegisters(self, mb, single_plc=False):
+    # Dictionnary dove andrò a mettere i registri letti e i
+    # relativi valori
+    registri = {}
+
+    # Definisco l'indirizzo di partenza per lo scan dei
+    # registri: se sto analizzando un blocco di PLC,
+    # allora analizzero i registri facenti capo allo
+    # indirizzo 0; se sto analizzando una specifica
+    # PLC, chiedo all'utente il registro da cui vuole
+    # recuperare i registri
+    if(single_plc == False):
+      starting_addr = 0
+    else:
+      starting_addr = input("Address to read (0-99): ")
+
+      while (int(starting_addr) > 99):
+        print("Invalid address!")
+        starting_addr = input("Address to read (0-99): ")
+
+    # Converto il valore letto in intero e poi lo trasformo in
+    # decimale, così da passarlo al metodo read_discretinputs()
+    # (gli indirizzi della PLC sono in base 8, mentre Modbus li
+    # vuole in base 10. Si veda per maggiori dettagli
+    # https://www.openplcproject.com/reference/modbus-slave/
+    # (ma attenzione alla modalità master, che NON ho considerato
+    # in questa sede!)
+    starting_addr = int(starting_addr)
+    starting_addr_dec = starting_addr * 8
+
+    print(f"Reading Discrete Input Registers from %IX{starting_addr}.0 to %IX{starting_addr}.7")
+    # Leggo 8 registri a partire dall'indirizzo di partenza. Nulla 
+    # mi vieterebbe di leggerne anche 100, ma manteniamo la 
+    # suddivisione in base all'indirizzo...)
+    discreteIn = mb.read_discreteinputs(starting_addr_dec, 8)
+
+    # Ricavo il dict dall'output della lettura dei
+    # registri
+    reg_num = 0 # Identificativo del registro
+
+    for di in discreteIn:
+      registri['%IX'+ str(starting_addr) +'.'+str(reg_num)] = str(di)
+      reg_num += 1
+
+    # Ritorno i registri e il loro valore
+    return registri
+
+  """
+  Leggo gli Input Registers (identificati da %IWa)
+
+  Parametri:
+  - mb: è il file descriptor della connessione Modbus
+  - single_plc: se False, analizza il range predefinito
+  di indirizzi da %IW0 a %IW7; se True analizza un range
+  di registri definito dall'utente. Il range deve essere
+  composto da due valori (starting_addr, ending_addr)
+  divisi da un "-" e senza spazi
+  """
+  def read_InputRegisters(self, mb, single_plc=False):
+    registri = {}
+
+    if(single_plc == False):
+      addr_range = "0-8"
+    else:
+      addr_range = input("Address range to read [0-1023]: ")
+
+      while(int(addr_range.split('-')[1]) > 1023):
+        print("Invalid addresses!")
+        addr_range = input("Address range to read [0-1023]: ")
+
+    starting_addr = int(addr_range.split('-')[0])
+    ending_addr = int(addr_range.split('-')[1])
+
+    print(f"Reading Input Registers from %IW{starting_addr} to %IW{ending_addr}")
+    inputRegisters = mb.read_inputregisters(starting_addr, ending_addr)
+
+    reg_num = starting_addr
+
+    for ir in inputRegisters:
+      registri['%IW' + str(reg_num)] = str(ir)
+      reg_num += 1
+
+    return registri
+
+  """
+  Leggo gli Output e gli Holding Registers
+  """
+  def read_HoldingOutputRegisters(self, mb, single_plc=False):
+    registri = {}
+    
+    if(single_plc == False):
+      addr_range = "0-10"
+    else:
+      addr_range = input("Address range to read [0-1023]]: ")
+
+      while(int(addr_range.split('-')[1]) > 1023):
+        print("Invalid addresses!")
+        addr_range = input("Address range to read [0-1023]: ")
+      
+    starting_addr = int(addr_range.split('-')[0])
+    ending_addr = int(addr_range.split('-')[1])
+
+    print(f"Reading Input Registers from %QW{starting_addr} to %QW{ending_addr}")
+    holdingRegisters = mb.read_holdingregisters(starting_addr, ending_addr)
+
+    reg_num = starting_addr
+
+    for hr in holdingRegisters:
+      registri['%QW' + str(reg_num)] = str(hr)
+      reg_num += 1
+
+    return registri
+
+  """
+  Leggo le Coils
+  """
+  def read_Coils(self, mb, single_plc=False):
+    registri = {}
+
+    if(single_plc == False):
+      starting_addr = 0
+    else:
+      starting_addr = input("Address to read (0-99): ")
+
+      while (int(starting_addr) > 99):
+        print("Invalid address!")
+        starting_addr = input("Address to read (0-99): ")
+
+    starting_addr = int(starting_addr)
+    starting_addr_dec = starting_addr * 8
+
+    print(f"Reading Coils from %QX{starting_addr}.0 to %QX{starting_addr}.7")
+    coils = mb.read_coils(starting_addr_dec, 8)
+
+    reg_num = 0
+
+    for coil in coils:
+      registri['%QX'+ str(starting_addr) +'.'+str(reg_num)] = str(coil)
+      reg_num += 1
+
+    return registri
 
   """
   Eseguo lo scan della rete con nmap filtrando la porta
@@ -93,88 +263,120 @@ class AttackPLC:
   I risultati dello scan vengono salvati in un file .json
   """
   def scan_all_plcs(self):
-    # Verifico se già esiste una scansione precedente. Se non esiste,
-    # chiedo all'utente di effettuarne una
-    if not os.path.exists('plc_list.json'):
-      req = input("PLC list not present. Perform a new search? [y/n] ")
-      if(req == "y"):
-        self.find_PLCs()
-      else:
-        return
+    self.scan_is_present()
 
     # Leggo da file la lista delle PLC trovate in precedenza
     with open('plc_list.json', 'r') as f:
-      file = f.read()
+      buf = f.read()
 
     # Converto l'elenco da JSON a dict
-    plc_list = json.loads(file)
+    plc_list = json.loads(buf)
 
     # Analizzo le PLC una a una
     for plc in plc_list:
-      # Dictionnaries per i vari registri
-      disInReg = {}
-      InReg = {}
-      HolReg = {}
-      Coils = {}
 
       # Mi connetto alla PLC
-      print(f'connecting to {plc_list[plc]}')
+      print(f'Connecting to {plc_list[plc]}')
       mb = ModbusClient(plc_list[plc], 502)
       mb.connect()
 
       # Leggo i Discrete Input Registers
-      print("Reading Discrete Input Registers (0-8)")
-      discreteIn = mb.read_discreteinputs(0, 8)
-    
-      # Ricavo il dict dall'output della lettura dei
-      # registri
-      di_num = 0
-      for di in discreteIn:
-        disInReg['%IX0.'+str(di_num)] = str(di)
-        di_num = di_num + 1
-
-      # Stampo il dict
-      print(disInReg) # Debug (?)
+      self.disInReg = self.read_DiscreteInputRegisters(mb, False)
+      print(self.disInReg)
 
       """
       Come prima, ma per tutti gli altri registri!
       """
-      print("Reading Input Registers (%IW0-7)")
-      inputRegisters = mb.read_inputregisters(0,8)
-      ir_num = 0
-      for ir in inputRegisters:
-        InReg['%IX'+str(ir_num)] = str(ir)
-        ir_num = ir_num + 1
-      print(InReg)
+      self.InReg = self.read_InputRegisters(mb, False)
+      print(self.InReg)
 
-      print("Reading Output/Holding Registers (%QW0-9)")
-      holdingRegisters = mb.read_holdingregisters(0, 10)
-      hr_num = 0
-      for hr in holdingRegisters:
-        HolReg['%QW'+str(hr_num)] = str(hr)
-        hr_num = hr_num + 1
-      print(HolReg)
+      self.HolReg = self.read_HoldingOutputRegisters(mb, False)
+      print(self.HolReg)
 
-      print("Reading Coils (%QX0.0-7)")
-      coils = mb.read_coils(0, 8)
-      coil_num = 0
-      for cl in coils:
-        Coils['%QX0.'+str(coil_num)] = str(cl)
-        coil_num = coil_num + 1
-      print(Coils)
+      self.Coils = self.read_Coils(mb, False)
+      print(self.Coils)
 
       # Qui dovrei aggiornare il dict, in teoria...
-      #self.plc_registers[plc_list[plc]] = {}
-      self.plc_registers[plc_list[plc]]['DiscreteInputRegisters'] = disInReg
-      self.plc_registers[plc_list[plc]]['InputRegisters'] = InReg
-      self.plc_registers[plc_list[plc]]['HoldingOutputRegisters'] = HolReg
-      self.plc_registers[plc_list[plc]]['Coils'] = Coils
+      self.plc_registers[plc_list[plc]]['DiscreteInputRegisters'] = self.disInReg
+      self.plc_registers[plc_list[plc]]['InputRegisters'] = self.InReg
+      self.plc_registers[plc_list[plc]]['HoldingOutputRegisters'] = self.HolReg
+      self.plc_registers[plc_list[plc]]['Coils'] = self.Coils
 
-      #print(plcs[plc])
+      #print(plcs[plc]) 
 
-    # Stampo il dict totale (quando riuscirò a farlo!)
-    print(json.dumps(self.plc_registers, indent=4))
+    #print(json.dumps(self.plc_registers, indent=4)) # Debug
+    
+    # Salvo il risultato della scansione su file
+    with open('plc_registers.json', 'w') as pr:
+      pr.write(json.dumps(self.plc_registers, indent=4))
+
     mb.close()
+
+    # Ritorno al menu principale
+    input("Done. Press Enter to continue ")
+
+  """
+  Analizzo una singola PLC scelta dalla lista delle PLC attive.
+  Di fatto il funzionamento è quasi identico a quello della funzione
+  precedente, ma stavolta chiedo all'utente esattamente quali
+  registri vuole analizzare. Il risultato dovrebbe venire salvato in
+  un file .json tipo <ip_plc>.json
+  """
+  def scan_single_plc(self):
+    self.scan_is_present()
+
+    with open('plc_list.json', 'r') as f:
+      buf = f.read()
+
+    plc_list = json.loads(buf)
+
+    print("Available PLCs: ")
+    count = 1 # Contatore, serve solo per l'elenco
+              # delle plc
+
+    for i in plc_list:
+      print(f'{str(count)} - {plc_list[i]}')
+      count += 1
+
+    choice = input('Choose a PLC: ')
+
+    for key in plc_list:
+      if(choice == key):
+        plc = plc_list[key]
+        break
+
+      else: 
+        print("Invalid choice")
+
+    print(plc) # Debug
+
+    # Mi connetto alla PLC
+    print(f'Connecting to {plc}')
+    mb = ModbusClient(plc, 502) 
+    mb.connect()
+
+    self.disInReg = self.read_DiscreteInputRegisters(mb, True)
+    print(self.disInReg)
+
+    self.InReg = self.read_InputRegisters(mb, True)
+    print(self.InReg)
+
+    self.HolReg = self.read_HoldingOutputRegisters(mb, True)
+    print(self.HolReg)
+
+    self.Coils = self.read_Coils(mb, True)
+    print(self.Coils)
+
+    self.single_plc_registers[plc]['DiscreteInputRegisters'] = self.disInReg
+    self.single_plc_registers[plc]['InputRegisters'] = self.InReg
+    self.single_plc_registers[plc]['HoldingOutputRegisters'] = self.HolReg
+    self.single_plc_registers[plc]['Coils'] = self.Coils
+
+    with open(f'{plc}.json', 'w') as sp:
+      sp.write(json.dumps(self.single_plc_registers, indent=4))
+
+    mb.close()
+    input("Done. Press Enter to continue ")
 
 
 """
@@ -185,6 +387,9 @@ def main():
   ap = AttackPLC()
 
   while(True):
+    # Pulisco lo schermo, che fa più elegante...
+    os.system('clear')
+
     print("==== Attack PLC - Menu ====")
     print("1 - Find active PLCs")
     print("2 - Scan PLCs registers")
@@ -199,7 +404,7 @@ def main():
     elif(choice == "2"):
       ap.scan_all_plcs()
     elif(choice == "3"):
-      pass
+      ap.scan_single_plc()
     elif(choice == "4"):
       pass
     elif(choice == "5"):
