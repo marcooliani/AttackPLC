@@ -107,14 +107,11 @@ class AttackPLC:
   def read_InputRegisters(self, mb, single_plc=False):
     registri = {}
 
-    if(single_plc == False):
-      addr_range = "0-8"
-    else:
-      addr_range = input("Address range to read [0-1023]: ")
+    addr_range = input("Address range to read [0-1023]: ")
 
-      while(int(addr_range.split('-')[1]) > 1023):
-        print("Invalid addresses!")
-        addr_range = input("Address range to read [0-1023]: ")
+    while(int(addr_range.split('-')[1]) > 1023):
+      print("Invalid addresses!")
+      addr_range = input("Address range to read [0-1023]: ")
 
     starting_addr = int(addr_range.split('-')[0])
     ending_addr = int(addr_range.split('-')[1])
@@ -136,14 +133,11 @@ class AttackPLC:
   def read_HoldingOutputRegisters(self, mb, single_plc=False):
     registri = {}
     
-    if(single_plc == False):
-      addr_range = "0-10"
-    else:
-      addr_range = input("Address range to read [0-1023]]: ")
+    addr_range = input("Address range to read [0-1023]]: ")
 
-      while(int(addr_range.split('-')[1]) > 1023):
-        print("Invalid addresses!")
-        addr_range = input("Address range to read [0-1023]: ")
+    while(int(addr_range.split('-')[1]) > 1023):
+      print("Invalid addresses!")
+      addr_range = input("Address range to read [0-1023]: ")
       
     starting_addr = int(addr_range.split('-')[0])
     ending_addr = int(addr_range.split('-')[1])
@@ -165,26 +159,26 @@ class AttackPLC:
   def read_Coils(self, mb, single_plc=False):
     registri = {}
 
-    if(single_plc == False):
-      starting_addr = 0
-    else:
-      starting_addr = input("Address to read (0-99): ")
+    starting_addr = input("Enter addresses separated by comma (0-99): ")
 
-      while (int(starting_addr) > 99):
-        print("Invalid address!")
-        starting_addr = input("Address to read (0-99): ")
+    #while (int(starting_addr) > 99):
+    #  print("Invalid address!")
+    #  starting_addr = input("Enter addresses separated by comma (0-99): ")
 
-    starting_addr = int(starting_addr)
-    starting_addr_dec = starting_addr * 8
+    starting_addr = starting_addr.split(',')
 
-    print(f"Reading Coils from %QX{starting_addr}.0 to %QX{starting_addr}.7")
-    coils = mb.read_coils(starting_addr_dec, 8)
+    for addr in starting_addr:
+      addr = int(addr)
+      addr_dec = addr * 8
 
-    reg_num = 0
+      print(f"Reading Coils from %QX{addr}.0 to %QX{addr}.7")
+      coils = mb.read_coils(addr_dec, 8)
 
-    for coil in coils:
-      registri['%QX'+ str(starting_addr) +'.'+str(reg_num)] = str(coil)
-      reg_num += 1
+      reg_num = 0
+
+      for coil in coils:
+        registri['%QX'+ str(addr) +'.'+str(reg_num)] = str(coil)
+        reg_num += 1
 
     return registri
 
@@ -567,7 +561,6 @@ class AttackPLC:
   """
   def attack_all_PLC(self, mb, single_plc=False):
     pass
-
 
 
 """
