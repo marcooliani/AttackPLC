@@ -23,6 +23,25 @@ class AttackPLC:
         self.HolReg = {}
         self.Coils = {}
 
+    # Giusto per dare colore alle print()...
+    class bcolors:
+        OKYELLOW = '\033[33m'
+        HEADER = '\033[35m'
+        OKBLACK = '\033[30m'
+        OKBLUE = '\033[34m'
+        OKCYAN = '\033[36m'
+        OKGREEN = '\033[32m'
+        OKGREY = '\033[93m'
+        OKRED = '\033[31m'
+        BGGREEN = '\033[42m'
+        BGYELLOW = '\033[43m'
+        BGCYAN = '\033[46m'
+        BGRED = '\033[41m'
+        BGBLUE = '\033[44m'
+        ENDC = '\033[0m'
+        BOLD = '\033[1m'
+        UNDERLINE = '\033[4m'
+
     """
     [Metodo interno] Verifico se già esiste una scansione precedente. Se non esiste,
     chiedo all'utente di effettuarne una
@@ -101,10 +120,13 @@ class AttackPLC:
         input("Done. Presse Enter to continue: ")
 
     def ask_registers(self):
-        req_di_registers = input("Discrete Input Registers. Enter address (0-99): ")
-        req_input_registers = input("Input Registers. Enter address range (0-1023): ")
-        req_holding_registers = input("Holding Registers. Enter address range (0-1023): ")
-        req_coils = input("Coils. Enter addresses separated by comma (0-99): ")
+        req_di_registers = input(f"{self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC}. "
+                                 f"Enter address (0-99): ")
+        req_input_registers = input(f"{self.bcolors.OKCYAN}Input Registers{self.bcolors.ENDC}. "
+                                    f"Enter address range (0-1023): ")
+        req_holding_registers = input(f"{self.bcolors.OKBLUE}Holding Registers{self.bcolors.ENDC}. "
+                                      f"Enter address range (0-1023): ")
+        req_coils = input(f"{self.bcolors.OKRED}Coils{self.bcolors.ENDC}. Enter addresses separated by comma (0-99): ")
 
         print("\n")
 
@@ -134,7 +156,10 @@ class AttackPLC:
         starting_addr = int(starting_addr)
         starting_addr_dec = starting_addr * 8
 
-        print(f"Reading Discrete Input Registers from %IX{starting_addr}.0 to %IX{starting_addr}.7")
+        print(f"Reading {self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC} "
+              f"from {self.bcolors.OKYELLOW}%IX{starting_addr}.0{self.bcolors.ENDC} "
+              f"to {self.bcolors.OKYELLOW}%IX{starting_addr}.7{self.bcolors.ENDC}")
+
         # Leggo 8 registri a partire dall'indirizzo di partenza. Nulla
         # mi vieterebbe di leggerne anche 100, ma manteniamo la
         # suddivisione in base all'indirizzo...)
@@ -165,7 +190,9 @@ class AttackPLC:
         starting_addr = int(addr_range.split('-')[0])
         ending_addr = int(addr_range.split('-')[1])
 
-        print(f"Reading Input Registers from %IW{starting_addr} to %IW{ending_addr}")
+        print(f"Reading {self.bcolors.OKCYAN}Input Registers{self.bcolors.ENDC} " 
+              f"from {self.bcolors.OKCYAN}%IW{starting_addr}{self.bcolors.ENDC} "
+              f"to {self.bcolors.OKCYAN}%IW{ending_addr}{self.bcolors.ENDC}")
         inputRegisters = mb.read_inputregisters(starting_addr, ending_addr)
 
         reg_num = starting_addr
@@ -187,7 +214,9 @@ class AttackPLC:
         starting_addr = int(addr_range.split('-')[0])
         ending_addr = int(addr_range.split('-')[1])
 
-        print(f"Reading Holding Registers from %QW{starting_addr} to %QW{ending_addr}")
+        print(f"Reading {self.bcolors.OKBLUE}Holding Registers{self.bcolors.ENDC} "
+              f"from {self.bcolors.OKBLUE}%QW{starting_addr}{self.bcolors.ENDC} "
+              f"to {self.bcolors.OKBLUE}%QW{ending_addr}{self.bcolors.ENDC}")
         holdingRegisters = mb.read_holdingregisters(starting_addr, ending_addr)
 
         reg_num = starting_addr
@@ -212,7 +241,9 @@ class AttackPLC:
             addr = int(addr)
             addr_dec = addr * 8
 
-            print(f"Reading Coils from %QX{addr}.0 to %QX{addr}.7")
+            print(f"Reading {self.bcolors.OKRED}Coils{self.bcolors.ENDC} "
+                  f"from {self.bcolors.OKRED}%QX{addr}.0{self.bcolors.ENDC} "
+                  f"to {self.bcolors.OKRED}%QX{addr}.7{self.bcolors.ENDC}")
             coils = mb.read_coils(addr_dec, 8)
 
             reg_num = 0
@@ -224,7 +255,7 @@ class AttackPLC:
         return registri
 
     def read_registers(self, plc, d_ir, ir, hr, cl):
-        print(f'Connecting to {plc}')
+        print(f'Connecting to {self.bcolors.OKGREY}{plc}{self.bcolors.ENDC}')
         print("\n")
 
         mb = ModbusClient(plc, 502)
@@ -266,7 +297,8 @@ class AttackPLC:
 
             # Analizzo le PLC una a una
             for plc in plc_list:
-                self.read_registers(plc_list[plc], req_di_registers, req_input_registers, req_holding_registers, req_coils)
+                self.read_registers(plc_list[plc], req_di_registers, req_input_registers, req_holding_registers,
+                                    req_coils)
 
                 # Qui dovrei aggiornare il dict, in teoria...
                 self.plc_registers[plc_list[plc]]['DiscreteInputRegisters'] = self.disInReg
@@ -523,7 +555,7 @@ def main():
         # Pulisco lo schermo, che fa più elegante...
         os.system('clear')
 
-        print("==== Attack PLC - Menu ====")
+        print(f"{ap.bcolors.BGRED}{ap.bcolors.OKBLACK}==== Attack PLC - Menu ===={ap.bcolors.ENDC}{ap.bcolors.ENDC}")
         print("1 - Find active PLCs")
         print("2 - Scan all PLCs registers")
         print("3 - Scan single PLC registers")
