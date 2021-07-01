@@ -145,33 +145,35 @@ class AttackPLC:
         registri = {}
 
         starting_addr = param_addr
+        starting_addr = starting_addr.split(',')
 
-        # Converto il valore letto in intero e poi lo trasformo in
-        # decimale, così da passarlo al metodo read_discretinputs()
-        # (gli indirizzi della PLC sono in base 8, mentre Modbus li
-        # vuole in base 10. Si veda per maggiori dettagli
-        # https://www.openplcproject.com/reference/modbus-slave/
-        # (ma attenzione alla modalità master, che NON ho considerato
-        # in questa sede!)
-        starting_addr = int(starting_addr)
-        starting_addr_dec = starting_addr * 8
+        for addr in starting_addr:
+            # Converto il valore letto in intero e poi lo trasformo in
+            # decimale, così da passarlo al metodo read_discretinputs()
+            # (gli indirizzi della PLC sono in base 8, mentre Modbus li
+            # vuole in base 10. Si veda per maggiori dettagli
+            # https://www.openplcproject.com/reference/modbus-slave/
+            # (ma attenzione alla modalità master, che NON ho considerato
+            # in questa sede!)
+            addr = int(addr)
+            addr_dec = addr * 8
 
-        print(f"Reading {self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC} "
-              f"from {self.bcolors.OKYELLOW}%IX{starting_addr}.0{self.bcolors.ENDC} "
-              f"to {self.bcolors.OKYELLOW}%IX{starting_addr}.7{self.bcolors.ENDC}")
+            print(f"Reading {self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC} "
+                  f"from {self.bcolors.OKYELLOW}%IX{addr}.0{self.bcolors.ENDC} "
+                  f"to {self.bcolors.OKYELLOW}%IX{addr}.7{self.bcolors.ENDC}")
 
-        # Leggo 8 registri a partire dall'indirizzo di partenza. Nulla
+            # Leggo 8 registri a partire dall'indirizzo di partenza. Nulla
         # mi vieterebbe di leggerne anche 100, ma manteniamo la
         # suddivisione in base all'indirizzo...)
-        discreteIn = mb.read_discreteinputs(starting_addr_dec, 8)
+            discreteIn = mb.read_discreteinputs(addr_dec, 8)
 
-        # Ricavo il dict dall'output della lettura dei
-        # registri
-        reg_num = 0  # Identificativo del registro
+            # Ricavo il dict dall'output della lettura dei
+            # registri
+            reg_num = 0  # Identificativo del registro
 
-        for di in discreteIn:
-            registri['%IX' + str(starting_addr) + '.' + str(reg_num)] = str(di)
-            reg_num += 1
+            for di in discreteIn:
+                registri['%IX' + str(addr) + '.' + str(reg_num)] = str(di)
+                reg_num += 1
 
         # Ritorno i registri e il loro valore
         return registri
