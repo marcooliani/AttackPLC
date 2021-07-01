@@ -163,8 +163,8 @@ class AttackPLC:
                   f"to {self.bcolors.OKYELLOW}%IX{addr}.7{self.bcolors.ENDC}")
 
             # Leggo 8 registri a partire dall'indirizzo di partenza. Nulla
-        # mi vieterebbe di leggerne anche 100, ma manteniamo la
-        # suddivisione in base all'indirizzo...)
+            # mi vieterebbe di leggerne anche 100, ma manteniamo la
+            # suddivisione in base all'indirizzo...)
             discreteIn = mb.read_discreteinputs(addr_dec, 8)
 
             # Ricavo il dict dall'output della lettura dei
