@@ -125,7 +125,7 @@ class AttackPLC:
     """
     def ask_registers(self):
         req_di_registers = input(f"{self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC}. "
-                                 f"Enter address (0-99): ")
+                                 f"Enter address separated by comma (0-99): ")
         req_input_registers = input(f"{self.bcolors.OKCYAN}Input Registers{self.bcolors.ENDC}. "
                                     f"Enter address range (0-1023): ")
         req_holding_registers = input(f"{self.bcolors.OKBLUE}Holding Registers{self.bcolors.ENDC}. "
