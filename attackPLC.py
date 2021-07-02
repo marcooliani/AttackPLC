@@ -415,7 +415,13 @@ class AttackPLC:
             if not multi == 'multi':
                 value = input("Enter new value [True/False]: ")
             else:
+                # I valori vanno inseriti dal registro di partenza fino a quello a cui
+                # si vuole arrivare. Ad esempio, se abbiamo come coil %QX0.1 e %QX0.6 a False
+                # e voglio metterle a True devo per forza inserire (assumendo di aver scelto come
+                # coil di partenza %QX0.1) "True,False,False,False,False,True" (senza apici)
                 value = input("Enter new values separated by commas [True/False]: ")
+
+                # Preparo l'array che andrà passato alla write_multiple_coils() di easyModbus
                 value = value.split(',')
 
                 for coil_val in value:
@@ -431,7 +437,10 @@ class AttackPLC:
             if not multi == 'multi':
                 value = input("Enter new value: ")
             else:
+                # Vale lo stesso discorso fatto per le coils
                 value = input("Enter new values separated by commas: ")
+
+                # Preparo l'array che verrà passato alla write_multiple_registers() di easyModbus
                 value = value.split(',')
 
                 for reg_val in value:
