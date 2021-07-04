@@ -475,6 +475,8 @@ class AttackPLC:
             print(f"Connection to {plc} failed. Exiting")
             return
 
+        print("\n")
+
         if reg_type == "coil":
             # Queste (ri)conversioni dell'indirizzo servono solo per la print!
             addr = modbus_addr / 8
@@ -482,9 +484,11 @@ class AttackPLC:
             register = modbus_addr % 8
 
             if not multi == 'multi':
-                print(f"DoS attack on {self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC}")
+                print(f"{self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} on "
+                      f"{self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC}")
             else:
-                print(f"DoS attack from {self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC} "
+                print(f"{self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} from "
+                      f"{self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC} "
                       f"to {self.bcolors.OKRED}%QX{addr}.{register + len(value)}{self.bcolors.ENDC}")
 
             while True:
@@ -495,9 +499,11 @@ class AttackPLC:
 
         elif reg_type == "register":
             if not multi == 'multi':
-                print(f"DoS attack on {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC}")
+                print(f"{self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} on "
+                      f"{self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC}")
             else:
-                print(f"DoS attack from {self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC} "
+                print(f"{self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} from "
+                      f"{self.bcolors.OKBLUE}%QW{modbus_addr}{self.bcolors.ENDC} "
                       f"to {self.bcolors.OKBLUE}%QW{modbus_addr + len(value)}{self.bcolors.ENDC}")
 
             while True:
@@ -621,14 +627,14 @@ class AttackPLC:
             # Scorri i vari registri e mostra quelli disponibili
             for key, val in tmp_plc_data.items():
                 if key == "HoldingOutputRegisters":
-                    print(key)
+                    print(f'{self.bcolors.BOLD}{key}{self.bcolors.ENDC}')
                     print("-----------")
 
                     for key2, val2 in tmp_plc_data[key].items():
                         print(key2)
 
                 if key == "Coils":
-                    print("\n" + key)
+                    print(f'\n{self.bcolors.BOLD}{key}{self.bcolors.ENDC}')
                     print("-----------")
 
                     for key2, val2 in tmp_plc_data[key].items():
@@ -705,14 +711,14 @@ class AttackPLC:
 
             for key, val in tmp_plc_data.items():
                 if key == "HoldingOutputRegisters":
-                    print(key)
+                    print(f'{self.bcolors.BOLD}{key}{self.bcolors.ENDC}')
                     print("-----------")
 
                     for key2, val2 in tmp_plc_data[key].items():
                         print(key2 + ' = ' + val2)
 
                 if key == "Coils":
-                    print("\n" + key)
+                    print(f'\n{self.bcolors.BOLD}{key}{self.bcolors.ENDC}')
                     print("-----------")
 
                     for key3, val3 in tmp_plc_data[key].items():
@@ -736,7 +742,7 @@ class AttackPLC:
 
         time.sleep(1)  # Altrimenti mi sballa la stampa in caso di thread
         print("\n")
-        input("Done. Presse Enter to continue: ")
+        input("Done. Press Enter to continue: ")
 
 
 """
