@@ -127,13 +127,13 @@ class AttackPLC:
     Chiedo all'utente i registri da scansionare
     """
     def ask_registers(self):
-        req_di_registers = input(f"{self.bcolors.OKYELLOW}Discrete Input Registers{self.bcolors.ENDC}. "
-                                 f"Enter address separated by comma (0-99): ")
-        req_input_registers = input(f"{self.bcolors.OKCYAN}Input Registers{self.bcolors.ENDC}. "
+        req_di_registers = input(f"Discrete Input Registers ({self.bcolors.OKYELLOW}%IX{self.bcolors.ENDC}). "
+                                 f"Enter address separated by commas (0-99): ")
+        req_input_registers = input(f"Input Registers ({self.bcolors.OKCYAN}%IW{self.bcolors.ENDC}). "
                                     f"Enter address range (0-1023): ")
-        req_holding_registers = input(f"{self.bcolors.OKBLUE}Holding Registers{self.bcolors.ENDC}. "
+        req_holding_registers = input(f"Holding Registers ({self.bcolors.OKBLUE}%QW{self.bcolors.ENDC}). "
                                       f"Enter address range (0-1023): ")
-        req_coils = input(f"{self.bcolors.OKRED}Coils{self.bcolors.ENDC}. Enter addresses separated by comma (0-99): ")
+        req_coils = input(f"Coils ({self.bcolors.OKRED}%QX{self.bcolors.ENDC}). Enter addresses separated by commas (0-99): ")
 
         print("\n")
 
@@ -391,7 +391,8 @@ class AttackPLC:
     Il metodo ritorna il tipo di registro ("coil" o "register", l'indirizzo Modbus del registro e il valore da
     scrivere
     """
-    def select_register(self, multi='single'):
+    @staticmethod
+    def select_register(multi='single'):
         reg_type = None
         modbus_addr = None
         value = None
