@@ -201,7 +201,7 @@ class AttackPLC:
         print(f"Reading {self.bcolors.OKCYAN}Input Registers{self.bcolors.ENDC} " 
               f"from {self.bcolors.OKCYAN}%IW{starting_addr}{self.bcolors.ENDC} "
               f"to {self.bcolors.OKCYAN}%IW{ending_addr}{self.bcolors.ENDC}")
-        inputRegisters = mb.read_inputregisters(starting_addr, ending_addr)
+        inputRegisters = mb.read_inputregisters(starting_addr, ending_addr + 1)
 
         reg_num = starting_addr
 
@@ -226,7 +226,7 @@ class AttackPLC:
         print(f"Reading {self.bcolors.OKBLUE}Holding Registers{self.bcolors.ENDC} "
               f"from {self.bcolors.OKBLUE}%QW{starting_addr}{self.bcolors.ENDC} "
               f"to {self.bcolors.OKBLUE}%QW{ending_addr}{self.bcolors.ENDC}")
-        holdingRegisters = mb.read_holdingregisters(starting_addr, ending_addr)
+        holdingRegisters = mb.read_holdingregisters(starting_addr, ending_addr + 1)
 
         reg_num = starting_addr
 
