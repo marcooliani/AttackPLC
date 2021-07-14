@@ -21,6 +21,7 @@ class AttackPLC:
         self.disInReg = {}
         self.InReg = {}
         self.HolReg = {}
+        self.MemReg = {}  # Per ora inutilizzato
         self.Coils = {}
 
     """
@@ -133,6 +134,7 @@ class AttackPLC:
                                     f"Enter address range (0-1023): ")
         req_holding_registers = input(f"Holding Registers ({self.bcolors.OKBLUE}%QW{self.bcolors.ENDC}). "
                                       f"Enter address range (0-1023): ")
+        # req_memory_registers = input(f"Memory Registers (%MW). Enter address range (0-1023): ")
         req_coils = input(f"Coils ({self.bcolors.OKRED}%QX{self.bcolors.ENDC}). Enter addresses separated by commas (0-99): ")
 
         print("\n")
@@ -237,6 +239,33 @@ class AttackPLC:
         return registri
 
     """
+    Leggo i Memory Registers (%MW)
+    
+    Il metodo utilizza anch'esso la read_holdingregisters() dato che la stessa funzione è in
+    grado di leggere sia gli holding registers, sia i memory registers. L'unica differenza è 
+    che i memory registers vengono mappati dall'indirizzo Modbus 1024 in su.
+    
+    Parametri: vedi metodo read_DiscreteInput()
+    """
+    def read_MemoryRegisters(self, mb, param_addr=''):
+        registri = {}
+
+        addr_range = param_addr
+        starting_addr = int(addr_range.split('-')[0]) + 1024
+        ending_addr = int(addr_range.split('-')[1]) + 1024
+
+        print(f'Reading Memory Registers from %MW{starting_addr} to $%MW{ending_addr}')
+        memoryRegisters = mb.read_holdingregisters(starting_addr, ending_addr + 1)
+
+        reg_num = starting_addr
+
+        for mr in memoryRegisters:
+            registri['%MW' + str(reg_num)] = str(mr)
+            reg_num += 1
+
+        return registri
+
+    """
     Leggo le Coils (%QX)
     
     Parametri: vedi metodo read_DiscreteInput()
@@ -287,6 +316,7 @@ class AttackPLC:
         self.disInReg = self.read_DiscreteInputRegisters(mb, d_ir)
         self.InReg = self.read_InputRegisters(mb, ir)
         self.HolReg = self.read_HoldingOutputRegisters(mb, hr)
+        # self.MemReg = self.read_MemoryRegisters(mb, mr)
         self.Coils = self.read_Coils(mb, cl)
 
         mb.close()
@@ -442,6 +472,12 @@ class AttackPLC:
             # Per gli holding registers, invece, siamo già a posto così e non serve la
             # conversione in decimale
             modbus_addr = int(choice.split(choice[2])[1])
+
+            # Per i memory register mi basta aggiungere 1024 al Modbus address degli holding
+            # registers, dato che entrambi utilizzano la write_single_register() e la
+            # write_multiple_registers() per scrivere sui rispettivi registri
+            if choice[1] == "M" or choice[1] == "m":
+                modbus_addr += 1024
 
             if not multi == 'multi':
                 value = input("Enter new value: ")
